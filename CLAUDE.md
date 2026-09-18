@@ -1,203 +1,96 @@
-# CLAUDE.md
+# OpenAwair contributor guidance
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Current status, not aspirational behavior
 
-## Project Overview
+OpenAwair aims to restore owner-controlled local MQTT/REST access to Awair devices
+and qualify a no-opening/no-extra-hardware end-user migration. As of 2026-09-18,
+there is **no verified stock-to-custom installation path** for Glow C or Element,
+and `firmware/src/main.c` is a bring-up stub. Do not call host-side simulations,
+unit tests, proposed GATT UUIDs, or a browser UI working device firmware.
 
-OpenAwair restores local-first functionality to discontinued Awair Glow C and Awair Element air quality monitors. The devices lost cloud support in 2022, making them non-functional without custom firmware. The goal is fully offline operation with data accessible via MQTT or REST API for Home Assistant integration.
+Read `docs/research/2026-09-18-stock-migration.md` and the closed-device runbook
+before suggesting any installation, reset, flash layout, or hardware operation.
+Those evidence-qualified documents supersede unsupported statements in the
+January 2026 plans, including their PDF copy and old task specifications.
 
-## Hardware
+## Model separation and evidence
 
-Both devices use the **Laird Sterling-EWB module** (STM32F412 ARM Cortex-M4 + Cypress CYW4343W Wi-Fi/BLE).
+- Awair's 2022 sunset notice covers V1, Glow and Glow C, not Element.
+- Rewair targets V1's EMW3165 / STM32F411 communications module. Its initial SWD
+  bootstrap is separate from its subsequent custom browser OTA support.
+- Glow C and Element chip identities, revisions, pins, sensors, flash geometry,
+  protection state and stock update behavior need model-specific confirmation.
+  Earlier STM32F412 / Sterling-EWB statements are planning assumptions until
+  backed by a board/device observation. Do not infer one model from another.
+- `ota.awair.is`, TLS on 443, hourly checks and DNS/static-IP fallback are
+  documented for Element. Glow C documentation specifies ports 8883 and 443,
+  but does not establish the same updater or host. Do not assume equivalence.
+- Certificate validation, image authentication and boot-time verification are
+  independent unknowns. An ASCII string, CRC or successful download proves none.
+- BLE provisioning is not BLE DFU. A writable characteristic is not an updater.
+  Nordic service UUID 0xFE59 is not a discovered stock Awair protocol.
 
-**Awair Glow C:**
-- SHTC3 (temp/humidity, I²C)
-- SGP30 (TVOC + eCO₂ estimate, I²C)
-- PIR motion sensor (GPIO)
-- RGB LED nightlight (GPIO/PWM)
-- Relay for smart plug control (GPIO)
+## Safety and privacy
 
-**Awair Element:**
-- SHT30 (temp/humidity, I²C)
-- SGP30 (TVOC, I²C)
-- Honeywell HPMA115S0 (PM2.5, UART) - requires fan spin-up period
-- Telaire T6703 (CO₂ NDIR, UART/I²C)
-- Ambient light sensor
-- Dot-matrix LED display
+Do not factory-reset legacy Awair devices for discovery. No unverified flash,
+DNS interception, update delivery, protection changes or mass erase may be
+presented as routine onboarding. The migration research toolkit intentionally
+has no write transport. Do not wire it to the simulated DFU client.
 
-**Debug Interface:** SWD pins (SWDIO, SWDCLK, NRST, GND, 3.3V) on test pads. Board labeled "AWAIR-LITE-MAIN V2.0" on Element. Use ST-Link or J-Link programmer. MCU may be read-protected but can be erased for custom firmware.
+Never promise "no brick risk." First installation needs separate recovery and
+power-loss qualification. A future Glow C implementation must define safe relay
+behavior throughout migration and rollback. Do not give unverified mains-power,
+programmer-power or pinout instructions.
 
-## Repository Structure
+Raw firmware/captures may contain credentials and keys. Keep them under
+`tools/migration/private/` (ignored) and outside public issues. Do not commit
+stock images, device identities, Wi-Fi credentials or unsanitized packets. A
+minimized report is not a guarantee of anonymity; review before sharing.
 
-- `firmware/` - C/C++ embedded firmware for STM32F412 (stub, to be implemented with ModusToolbox/WICED)
-- `host/` - TypeScript host-side tooling for DFU, provisioning, and Home Assistant integration
-- `docs/` - Project plan and remaining tasks checklist
+## Code layout and commands
 
-## Build Commands
+- `firmware/`: C/C++ stub and future target-specific firmware.
+- `host/`: older TypeScript behavioral interfaces/tests; no real transport yet.
+- `tools/migration/src/`: pure TypeScript report, capture, firmware and BLE modules.
+- `tools/migration/cli.mjs`, `server.mjs`: Node standard-library entrypoints.
+- `tools/migration/web/`: static workbench, no network API or third-party assets.
+- `tools/migration/ble_inventory.py`: optional OS-exposed metadata collector.
 
-All commands run from repository root:
-
-```bash
-npm run typecheck   # Type check host TypeScript (no emit)
-npm run lint        # Strict linting for unused vars/params
-npm run test        # Compile and run tests
+```sh
+npm run typecheck
+npm run lint
+npm test
+npm run migration:build
+npm run migration:test
+python3 -m unittest discover -s tools/migration/test -p 'test_*.py'
 ```
 
-## Testing
+The migration build is intentionally separate from the old CommonJS host build;
+its ES modules also run in browsers. Node 22+ is required. TypeScript is the only
+Node dependency. Native BLE additionally uses `requirements-ble.txt`; imports are
+lazy so hardware-free tests do not require Bleak or a Bluetooth adapter.
 
-Uses Node.js native `node:test` module with ESM-style imports:
+Optional UI smoke test (requires Playwright and Chromium):
 
-```bash
-npm run test                    # Run all tests
-node --test dist/test/dfu.js    # Run single test file (after compile)
+```sh
+python3 tools/migration/test/browser_smoke.py
 ```
 
-Test files are in `host/test/` and compiled to `dist/test/`.
+`CHROMIUM_EXECUTABLE` may select a preinstalled test browser. Never bypass an
+administrator's browser/network restrictions to run this test; record the
+limitation and rely on an authorized CI runner.
 
-## Architecture
+## Testing and release rules
 
-### Host Tooling (TypeScript)
+Write failing tests first. Keep synthetic fixtures visibly synthetic. Test
+bounds, hostile/malformed input, cancellation, disconnect cleanup and report data
+minimization. Unknown hardware and unknown verification remain unknown in every
+report. Browser GATT discovery is permission-limited, not exhaustive.
 
-```
-host/src/
-├── firmware/           # Device abstractions
-│   ├── device.ts       # AwairDevice controller
-│   ├── bootloader/     # DFU session and boot logic
-│   ├── networking/     # MQTT, REST, Wi-Fi provisioning
-│   ├── sensors/        # Sensor interfaces and scheduler
-│   └── storage/        # Flash key-value abstraction
-├── loader/             # External tooling
-│   ├── ble/            # BLE DFU client
-│   └── wifi/           # Wi-Fi provisioning flow
-└── shared/             # Utilities (CRC32, telemetry types)
-```
+Do not claim a target or platform is tested from mocks alone. A flashing release
+requires evidence of stock acceptance, successful boot, retained device data,
+recovery through interrupted operations, and repeatable enclosure-closed use on
+each exact model/revision/stock-version combination.
 
-**Key interfaces:**
-- `SensorDriver`: Provides name, interval, and async read method
-- `DfuSession`: Accepts firmware chunks, validates CRC32, returns complete image
-- `MqttPublisher`: Formats telemetry for MQTT topics
-- `RestRouter`: Routes requests to endpoint handlers
-
-### Firmware (C/C++)
-
-Currently stub code. Recommended approach: **WICED SDK or Infineon ModusToolbox** (provides Wi-Fi, BLE, RTOS). Alternative: FreeRTOS/Zephyr with ported CYW43 driver.
-
-**Flash layout:**
-- Bootloader region: 64-128KB (handles BLE DFU and recovery)
-- Application region: main firmware with sensor tasks, networking, device logic
-
-**Sensor timing:**
-- Temp/humidity: ~1 second intervals
-- VOC (SGP30): 2-10 second intervals, requires baseline save every ~12 hours to flash
-- CO₂ (T6703): outputs every 2 seconds by default
-- PM2.5 (HPMA115S0): active mode streaming, needs warm-up period
-
-**Safety constraints:**
-- Relay defaults to OFF on boot
-- Implement relay toggle rate limiting to prevent rapid power cycling
-
-## Bootloader and DFU
-
-**DFU Mode Entry:** Button hold during reset, or flag set via loader app command.
-
-**BLE DFU Protocol (modeled on Nordic Secure DFU):**
-1. Bootloader advertises custom GATT service (e.g., "AwairDFU" UUID)
-2. Loader sends "start DFU" command
-3. Firmware streamed in ~512-byte chunks via BLE characteristic
-4. Bootloader writes chunks to application flash region
-5. CRC32 validation after transfer
-6. "Validate & reboot" command triggers boot to new firmware
-7. On failure: bootloader stays in DFU mode for retry (no brick risk)
-
-**Initial Flash Options:**
-1. SWD programmer (recommended) - requires opening device
-2. DNS hijack of `ota.awair.is` (complex, unreliable)
-3. BLE exploit in setup mode (requires reverse engineering)
-
-## Loader App (iOS/Mac)
-
-Recommended: **Swift/SwiftUI with Mac Catalyst** for single codebase covering iPhone and Mac via CoreBluetooth.
-
-**Workflow:**
-1. Scan for BLE advertisement ("GlowC-DFU" or custom UUID)
-2. Connect and display device info/firmware version
-3. Select firmware binary, stream in chunks with progress
-4. Send validate & reboot command
-5. After DFU: provision Wi-Fi credentials via BLE (device advertises Provisioning service on first boot)
-
-## Integration Points
-
-**MQTT Topics:**
-- `openawair/{deviceId}/telemetry` - Sensor readings (JSON)
-- `openawair/{deviceId}/availability` - Online/offline status
-- `homeassistant/sensor/{id}/{sensor}/config` - HA MQTT Discovery
-
-**REST Endpoints:**
-- `GET /air-data/latest` - JSON with all sensor values (compatible with original Awair local API)
-- Control endpoints for relay and LED color
-
-**Home Assistant:** Firmware sends MQTT Discovery config messages on first connect for auto-entity creation.
-
-## Development Notes
-
-- TypeScript compiles to `dist/` as CommonJS
-- Host abstractions define firmware behavior contracts before C implementation
-- SGP30 requires ~24 hours to auto-calibrate; baseline must persist across reboots
-- Firmware should auto-detect device type (Glow C vs Element) by probing for CO₂ sensor
-- RGB LED can indicate status: blinking blue (Wi-Fi waiting), solid green (normal), red (error)
-
-## Task Management
-
-Tasks are managed as individual PRD (Product Requirements Document) files in `docs/tasks/`.
-
-### Task Directory Structure
-
-```
-docs/tasks/
-├── README.md           # Task index and workflow documentation
-├── *.md                # Pending tasks (not yet started)
-├── working/            # Tasks currently in progress
-├── in-review/          # Tasks needing code review or manual validation
-└── done/               # Completed tasks
-```
-
-### Task Lifecycle
-
-1. **Pending** (`docs/tasks/`): Task defined but not started
-2. **Working** (`docs/tasks/working/`): Task actively being implemented
-3. **In Review** (`docs/tasks/in-review/`): Awaiting code review or validation
-4. **Done** (`docs/tasks/done/`): Fully completed and verified
-
-### PRD Format
-
-Each task follows a standardized PRD format with sections:
-- **Overview**: Problem, impact, context
-- **Out of Scope**: What's explicitly NOT included
-- **Solution**: Approach, user stories, implementation notes
-- **Technical Requirements**: Constraints, dependencies, code references
-- **Acceptance Criteria**: Checkbox success criteria
-- **Open Questions**: Unknowns to investigate
-- **AI Metadata**: Machine-readable task properties (complexity, phase, status)
-
-### Task Index by Phase
-
-**Phase 1 - Firmware Foundation (Blocking):**
-- PRD-001 to PRD-006: Hardware validation, dev environment, peripherals, sensors, storage, scheduler
-
-**Phase 2 - Networking:**
-- PRD-007 to PRD-011: Wi-Fi driver, provisioning, BLE stack, MQTT, REST
-
-**Phase 3 - Device Features:**
-- PRD-012 to PRD-014: Glow C features, Element features, shared features
-
-**Phase 4 - Bootloader & OTA:**
-- PRD-015 to PRD-020: Bootloader, DFU protocol, firmware validation, host tooling
-
-**Phase 5 - Polish & Release:**
-- PRD-021 to PRD-022: Testing, documentation
-
-See `docs/tasks/README.md` for the complete task index with dependency markers.
-
-## Legacy Task Checklist
-
-For a condensed checklist view, see `docs/remaining-tasks.md`.
+No Rewair source is vendored in this change. Resolve upstream licensing and SDK/
+radio-blob redistribution before importing code or distributing firmware.

@@ -1,0 +1,2 @@
+# Optional native metadata collector. Core/browser/CLI analysis has no runtime dependency.
+bleak==3.0.2
