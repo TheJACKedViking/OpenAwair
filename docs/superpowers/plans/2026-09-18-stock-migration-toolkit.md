@@ -70,5 +70,10 @@ repository guidance so planned hardware/DFU behavior is not called verified.
   loss-of-power recovery and a repeated enclosure-closed installation.
 - [x] Run all available local tests, inspect the diff, and document unavailable
   hardware/macOS/iOS testing rather than marking it passed.
-- [ ] Publish the changes to `research/stock-migration-toolkit`, open a PR and
+- [x] Publish the changes to `research/stock-migration-toolkit`, open a PR and
   explicit follow-up issues for physical evidence and migration qualification.
+
+Publication: PR #3; physical evidence #4; transition/recovery qualification #5.
+The first CI run passed all four Linux/macOS software matrix jobs. Its browser
+smoke test exposed CSP-incompatible test polling; locator assertions replace that
+polling without weakening the workbench policy. Final CI status is recorded on PR #3.

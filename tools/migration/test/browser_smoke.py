@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 import time
 from urllib.request import urlopen
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -39,26 +39,27 @@ def main():
             page.on('request', lambda request: requests.append(request.url))
             page.goto(origin)
             page.get_by_role('button', name='View research status').click()
-            page.wait_for_function("document.querySelector('#report').textContent.includes('qualifiedStockMigrationProfiles')")
+            expect(page.locator('#report')).to_contain_text('qualifiedStockMigrationProfiles')
             assert json.loads(page.locator('#report').text_content())['observations']['flashAvailable'] is False
             page.locator('#firmware').set_input_files({
                 'name': 'synthetic.bin', 'mimeType': 'application/octet-stream',
                 'buffer': b'WICED\x00https://ota.awair.is/private?token=do-not-export\x00',
             })
             page.get_by_role('button', name='Analyze file locally').click()
-            page.wait_for_function("document.querySelector('#report').textContent.includes('firmware-static')")
+            expect(page.locator('#report')).to_contain_text('firmware-static')
             result = json.loads(page.locator('#report').text_content())
             assert result['stockMigration'] == 'unverified'
             assert 'do-not-export' not in json.dumps(result)
             with page.expect_download() as download:
                 page.get_by_role('button', name='Save minimized report').click()
             assert download.value.suggested_filename.endswith('-report.json')
+            assert json.loads(Path(download.value.path()).read_text()) == result
             page.locator('#device-ip').fill('192.168.1.50')
             page.locator('#capture').set_input_files({
                 'name': 'synthetic-capture.json', 'mimeType': 'application/json', 'buffer': b'[]',
             })
             page.get_by_role('button', name='Summarize locally').click()
-            page.wait_for_function("document.querySelector('#message').textContent.includes('No matching device packets')")
+            expect(page.locator('#message')).to_contain_text('No matching device packets')
             assert not errors, errors
             assert all(url.startswith(origin + '/') or url == origin for url in requests), requests
             artifacts = Path(tempfile.gettempdir()) / 'openawair-browser-smoke'
