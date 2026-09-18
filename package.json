@@ -7,7 +7,12 @@
   "scripts": {
     "typecheck": "tsc -p host/tsconfig.json --noEmit",
     "lint": "tsc -p host/tsconfig.lint.json --noEmit",
-    "test": "tsc -p host/tsconfig.json --outDir dist --module CommonJS && node --test dist/test/*.js"
+    "test": "tsc -p host/tsconfig.json --outDir dist --module CommonJS && node --test dist/test/*.js",
+    "migration:build": "tsc -p tools/migration/tsconfig.json",
+    "migration:test": "npm run migration:build && node --test tools/migration/test/*.test.mjs",
+    "migration:serve": "npm run migration:build && node tools/migration/cli.mjs serve",
+    "migration": "node tools/migration/cli.mjs",
+    "test:all": "npm test && npm run migration:test"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

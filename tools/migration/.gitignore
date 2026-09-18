@@ -1,0 +1,8 @@
+build/
+__pycache__/
+.venv/
+private/
+*.pcap
+*.pcapng
+*.bin
+*-report.json

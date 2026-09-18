@@ -1,0 +1,6 @@
+{
+  "name": "openawair-migration-research",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" }
+}

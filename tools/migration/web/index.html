@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OpenAwair · Migration Research</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main>
+    <header><div><p class="eyebrow">OPENAWAIR / DEVICE RESEARCH</p><h1>Find the path.<br>Preserve the device.</h1></div><span class="badge">METADATA ONLY</span></header>
+    <p class="intro">A local workbench for investigating stock Awair firmware. This is not a flasher. Files stay in your browser, and Bluetooth discovery does not read or write characteristic values.</p>
+    <aside><strong>No verified stock-install path yet.</strong> Do not factory-reset a Glow C, Glow or V1 for discovery. A visible Bluetooth service, firmware hash or TLS connection does not prove that custom firmware can be installed.</aside>
+    <section class="profile"><label for="model">Selected model <span>(your selection, not hardware detection)</span></label><select id="model"><option value="glow-c">Awair Glow C</option><option value="element">Awair Element</option><option value="v1">Awair V1</option><option value="glow">Awair Glow</option></select><button id="status" type="button">View research status</button></section>
+    <div class="panels">
+      <section class="panel"><p class="step">01 / BLUETOOTH</p><h2>Inventory accessible services</h2><p>The browser can see only explicitly permitted services. For a fuller OS-exposed inventory, use the native collector in the repository.</p><label for="services">Additional service UUIDs <span>(optional; comma-separated)</span></label><input id="services" placeholder="UUIDs from an existing native inventory" autocomplete="off"><label class="consent"><input id="consent" type="checkbox">I will select only my own Awair, without resetting it.</label><button id="bluetooth" type="button">Choose device and inspect metadata</button><p id="bluetooth-support" class="note"></p></section>
+      <section class="panel"><p class="step">02 / FIRMWARE</p><h2>Inspect a local image</h2><p>Compute SHA-256 and find known update/security markers and candidate vectors. No image is uploaded or sent to a device.</p><label for="firmware">Your firmware file <span>(maximum 16 MiB)</span></label><input id="firmware" type="file"><button id="analyze-firmware" type="button">Analyze file locally</button><p class="note">Raw firmware may contain private keys or credentials. The report contains marker offsets, not extracted strings.</p></section>
+      <section class="panel wide"><p class="step">03 / NETWORK EVIDENCE</p><h2>Summarize a device capture</h2><p>Select a TShark JSON export from your own network capture. The device IP scopes the analysis; it is omitted from the report. Only three known Awair hostnames are exported. Unknown hostnames are counted, not disclosed.</p><div class="capture-fields"><div><label for="device-ip">Captured device IP</label><input id="device-ip" placeholder="192.168.1.50" autocomplete="off"></div><div><label for="capture">TShark JSON <span>(maximum 32 MiB / 25,000 packets)</span></label><input id="capture" type="file" accept="application/json,.json"></div></div><button id="analyze-capture" type="button">Summarize locally</button></section>
+    </div>
+    <section class="results"><div class="results-heading"><h2>Evidence report</h2><button id="download" type="button" disabled>Save minimized report</button></div><p id="message" role="status" aria-live="polite">Choose a research operation to begin. No firmware-write command exists in this workbench.</p><pre id="report" tabindex="0" aria-label="JSON evidence report">No evidence collected.</pre></section>
+    <footer>Research results are observations, not flashing authorization. Review reports before sharing. No analytics, accounts, remote scripts or automatic uploads.</footer>
+  </main>
+</body>
+</html>
